@@ -158,7 +158,7 @@ end
 
 ### `import`
 
-If we want to import functions and macros rather than aliasing the module we can use `import/2`:
+If we want to import functions and macros rather than aliasing the module we can use `import`:
 
 ```elixir
 iex> last([1, 2, 3])
@@ -221,7 +221,7 @@ Before we had access to that function from import, but in our second function it
 
 ### `require`
 
-Although used less frequently `require/2` is nonetheless important.
+Although used less frequently `require` is nonetheless important.
 Requiring a module ensures that it is compiled and loaded.
 This is most useful when we need to access a module's macros:
 
@@ -234,7 +234,7 @@ end
 ```
 
 If we attempt to call a macro that is not yet loaded Elixir will raise an error.
-The most commonly used bit that needs `require/2` due to use of macros is `require IEx; IEx.pry`.
+The most commonly used bit that needs `require` due to use of macros is `require IEx; IEx.pry`.
 
 ### `use`
 
@@ -254,7 +254,7 @@ defmodule UseImportRequire.UseMe do
 end
 ```
 
-and we add this line to use UseImportRequire:
+and we add this line to use `UseImportRequire`:
 
 ```elixir
 use UseImportRequire.UseMe
@@ -265,39 +265,6 @@ Using `UseImportRequire.UseMe` defines a `use_test/0` function through invocatio
 ```elixir
 iex> UseImportRequire.use_test
 use_test
-:ok
-```
-
-We can also override a given function that is given to use with `__using__/1`.
-This is done by using `defoverridable`.
-Lets change things up so that we implement this:
-
-```elixir
-# lib/use_import_require/use_me.ex
-defmodule UseImportRequire.UseMe do
-  defmacro __using__(_) do
-    quote do
-      def use_test do
-        IO.puts "use_test"
-      end
-      defoverridable [use_test: 0]
-    end
-  end
-end
-```
-
-and now we can override it in IEx if we put it in another module:
-
-```elixir
-iex> defmodule Foo do
-...>   use UseImportRequire.UseMe
-...>   def use_test do
-...>     IO.puts "overridden"
-...>   end
-...> end
-{:module, Foo, .. }
-Foo.use_test
-overridden
 :ok
 ```
 
@@ -324,6 +291,40 @@ end
 The `Ecto.Migration.__using__/1` macro includes an import call so that when you `use Ecto.Migration` you also `import Ecto.Migration`.
 It also sets up a module property which we will assume controls Ecto’s behavior.
 
+We can also override a given function that is given to use with `__using__/1`.
+This is done by using `defoverridable`.
+Lets implement this:
+
+```elixir
+iex> defmodule Foo do
+...>   defmacro __using__(_) do
+...>     quote do
+...>       def bar do
+...>         2
+...>       end
+...>       defoverridable [bar: 0]
+...>     end
+...>   end
+...> end
+{:module, Foo,
+ <<. . .>>, {:__using__, 1}}
+iex> defmodule Baz do
+...>   use Foo
+...>   def bar do
+...>     super + 2
+...>   end
+...> end
+{:module, Baz,
+ <<. . .>>, {:bar, 0}}
+iex> Baz.bar
+4
+```
+
+As you can see, we are able to override the default method `bar` from `use`, and even can call `super` to get the original functionality.
+It is worth noting that `super` must be called with the same number of arguments as the parent method being overridden.
+It also must be placed _after_ the functions being overridden.
+
+### Finishing Up
 To recap: the `use` macro simply invokes the `__using__/1` macro of the specified module.
 To really understand what that does you need to read the `__using__/1` macro.
 
